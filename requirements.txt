@@ -1,0 +1,4 @@
+gspread==6.1.2
+pandas==2.2.2
+jupyter==1.0.0
+openpyxl==3.1.5
