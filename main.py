@@ -262,4 +262,5 @@ def main():
     print(results_df)
 
 
-main()
+if __name__ == '__main__':
+    main()
