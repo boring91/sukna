@@ -7,7 +7,13 @@ import pandas as pd
 
 
 def ci(column_name):
-    column_name = column_name.upper()  # Convert to uppercase to handle case insensitivity
+    """
+    Converts an Excel column name (e.g., `A`)
+    to an index number.
+    :param column_name: the column name to covert to index.
+    :return:
+    """
+    column_name = column_name.upper()
     number = 0
     for char in column_name:
         number = number * 26 + (ord(char) - ord('A') + 1)
@@ -15,6 +21,12 @@ def ci(column_name):
 
 
 def ic(index):
+    """
+    Converts a numerical index to Excel column
+    name.
+    :param index: the index to convert to column.
+    :return:
+    """
     column_name = ''
     while index >= 0:
         index, remainder = divmod(index, 26)
@@ -39,7 +51,7 @@ def load_data(file_id: str,
     wks = gc.open_by_key(file_id).sheet1
 
     start_range = 'A'
-    end_range = 'CP'
+    end_range = 'CU'
 
     sheet = wks.get(f'{start_range}1:{end_range}{max_rows}')
 
@@ -69,7 +81,16 @@ def load_data(file_id: str,
         'المؤهل الدراسي': 'educational_qualification',
         'العمر': 'age',
         'درجة الجمال': 'beauty_level',
-        'نوع الحجاب': 'hijab_type'})
+        'نوع الحجاب': 'hijab_type',
+        'المنطقة': 'province',
+        'نوع السكن': 'accommodation_type',
+        'اذا كان هناك أشياء تريد ذكرها عن نفسك': 'male_description_extra',
+        'تفاصيل الطول والوزن': 'height_weight_details',
+        'أذكر الأشياء التي تود أن تكون موجودة في زوجتك غير ما سبق ذكره، إذا كان هناك شيء أو يكتفى بكلمة (لايوجد)': 'male_condition_extra',
+        'اسم المدينة التي تسكن فيها': 'male_city',
+        'اسم المدينة التي تسكنين فيها': 'female_city',
+        'اذا كان هناك أشياء تريدين ذكرها عن نفسك': 'female_description_extra',
+        'أذكري الأشياء التي تودين أن تكون موجودة في زوجتك غير ما سبق ذكره ، إذا كان هناك شيء او يكتفى بكلمة (لا يوجد)': 'female_condition_extra'})
 
     df = df.map(lambda x: x.replace('غير مهم', 'not_important') if isinstance(x, str) else x)
 
@@ -89,8 +110,8 @@ def load_data(file_id: str,
 
 def generate_gender_df(df: pd.DataFrame, gender: Literal['male', 'female']):
     dc_ranges = {
-        'male': ['D', 'Y', 'Z', 'AU'],
-        'female': ['AV', 'BR', 'BS', 'CM']
+        'male': ['D', 'AA', 'AB', 'AX'],
+        'female': ['AZ', 'BX', 'BY', 'CT']
     }
 
     ds = dc_ranges[gender][0]
@@ -106,6 +127,8 @@ def generate_gender_df(df: pd.DataFrame, gender: Literal['male', 'female']):
     base_df = filtered_df.iloc[:, list(d_range) + list(c_range)]
 
     d_df = pd.concat([filtered_df['intermediary_number'], base_df.iloc[:, :len(d_range)]], axis=1)
+    d_df['row_number'] = df[df.iloc[:, 2] == gender].index + 1
+
     c_df = base_df.iloc[:, len(d_range):]
 
     return base_df, d_df, c_df
@@ -118,6 +141,9 @@ def compute_match(
         fc_df: pd.DataFrame,
         m_id: int,
         f_id: int):
+    # These standards are compared by taking the
+    # standard's value from a description dataframe
+    # and checking its match in the conditions dataframe
     comparison_standards = [
         'family_nature',
         'nationality_type',
@@ -135,7 +161,16 @@ def compute_match(
         'financial_status',
         'educational_qualification',
         'beauty_level',
-        'hijab_type'
+        'hijab_type',
+        'province'
+    ]
+
+    # These standards are compared by checking the
+    # intersection of the values in the condition
+    # dataframes only; i.e., description dataframes
+    # will NOT be used in the comparison.
+    condition_only_standards = [
+        'accommodation_type'
     ]
 
     md = md_df.loc[m_id]
@@ -146,7 +181,7 @@ def compute_match(
 
     def is_exact_match(field, c_only=False):
         if c_only:
-            return mc[field] == fc[field]
+            return mc[field] == 'not_important' or fc[field] == 'not_important' or mc[field] == fc[field]
 
         return (mc[field] == 'not_important' or mc[field] == fd[field]) and \
             (fc[field] == 'not_important' or fc[field] == md[field])
@@ -213,6 +248,12 @@ def compute_match(
             score += r
             total_score += 1
 
+    for standard in condition_only_standards:
+        r = compute_standard_score(standard, mc, fc)
+        if r > -1:
+            score += r
+            total_score += 1
+
     return score / total_score
 
 
@@ -221,43 +262,62 @@ def compute_results(
         mc_df: pd.DataFrame,
         fd_df: pd.DataFrame,
         fc_df: pd.DataFrame,
-        min_threshold):
+        min_threshold,
+        max_threshold):
     score_results = []
 
     for m_id in md_df.index:
         for f_id in fd_df.index:
             score = compute_match(md_df, mc_df, fd_df, fc_df, m_id, f_id)
-            if score < min_threshold:
+            if not (min_threshold <= score <= max_threshold):
                 continue
 
             score_results.append({
                 'male': md_df.loc[m_id],
+                'male_c': mc_df.loc[m_id],
                 'female': fd_df.loc[f_id],
+                'female_c': fc_df.loc[f_id],
                 'score': score
             })
 
     return score_results
 
 
-def main():
+def get_result_df() -> pd.DataFrame:
     max_rows_to_load = 1000
-    file_id = '1U4jnFH-WvaW-KobcOVXqyQJ2EPCxN32CeBEsasPuolg'
+    file_id = '15iw-HH19cS_gFArQhAxGmHdDf9Y7m9_nU4NcZIyc_Z8'
     service_account_json_path = 'service_account.json'
-    min_score_threshold = 0.7
+    min_score_threshold = 0.6
+    max_score_threshold = 1.0
 
     df = load_data(file_id, service_account_json_path, max_rows_to_load)
 
     males_df, md_df, mc_df = generate_gender_df(df, 'male')
     females_df, fd_df, fc_df = generate_gender_df(df, 'female')
 
-    results = compute_results(md_df, mc_df, fd_df, fc_df, min_score_threshold)
+    results = compute_results(md_df, mc_df, fd_df, fc_df, min_score_threshold, max_score_threshold)
     results_df = pd.DataFrame(map(lambda x: {
+        'رقم الصف للرجل': x['male']['row_number'],
         'اسم الرجل': x['male']['full_name'],
         'رقم الوسيط للرجل': x['male']['intermediary_number'],
+        'المدينة للرجل': x['male']['male_city'],
+        'تفاصيل الطول والوزن للرجل': x['male']['height_weight_details'],
+        'معلومات إضافية للرجل': x['male']['male_description_extra'],
+        'شروط إضافية للرجل': x['male_c']['male_condition_extra'],
+        'رقم الصف للفتاة': x['female']['row_number'],
         'اسم الفتاة': x['female']['full_name'],
         'رقم الوسيط للفتاة': x['female']['intermediary_number'],
+        'المدينة للفتاة': x['female']['female_city'],
+        'تفاصيل الطول والوزن للفتاة': x['female']['height_weight_details'],
+        'معلومات إضافية للفتاة': x['female']['female_description_extra'],
+        'شروط إضافية للفتاة': x['female_c']['female_condition_extra'],
         'نسبة التوافق': x['score'] * 100}, results))
 
+    return results_df
+
+
+def main():
+    results_df = get_result_df()
     results_df.to_excel('results.xlsx')
     print(results_df)
 
