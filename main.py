@@ -35,6 +35,79 @@ def ic(index):
     return column_name
 
 
+def ar_en_column_name_dict(direction: Literal['ar_en', 'en_ar']):
+    ar = ['الاسم الثلاثي',
+          'رقم جوال الوسيط او الوسيطة',
+          'نوع الجنس',
+          'نوع القبيلة',
+          'نوع الزواج',
+          'طبيعة العائلة',
+          'نوع الجنسية',
+          'تاريخ الميلاد',
+          'الحالة الاجتماعية',
+          'الوظيفة',
+          'الطول',
+          'الوزن',
+          'لون البشرة',
+          'درجة الوسامة',
+          'درجة التدين',
+          'درجة الخلق',
+          'درجة الذرابة',
+          'الحالة الصحية',
+          'التدخين',
+          'الحالة المادية',
+          'المؤهل الدراسي',
+          'العمر',
+          'درجة الجمال',
+          'نوع الحجاب',
+          'المنطقة',
+          'نوع السكن',
+          'اذا كان هناك أشياء تريد ذكرها عن نفسك',
+          'تفاصيل الطول والوزن',
+          'أذكر الأشياء التي تود أن تكون موجودة في زوجتك غير ما سبق ذكره، إذا كان هناك شيء أو يكتفى بكلمة (لايوجد)',
+          'اسم المدينة التي تسكن فيها',
+          'اسم المدينة التي تسكنين فيها',
+          'اذا كان هناك أشياء تريدين ذكرها عن نفسك',
+          'أذكري الأشياء التي تودين أن تكون موجودة في زوجتك غير ما سبق ذكره ، إذا كان هناك شيء او يكتفى بكلمة (لا يوجد)']
+
+    en = ['full_name',
+          'intermediary_number',
+          'gender',
+          'clan_type',
+          'marriage_type',
+          'family_nature',
+          'nationality_type',
+          'date_of_birth',
+          'marital_status',
+          'job',
+          'height',
+          'weight',
+          'skin_color',
+          'attractiveness_level',
+          'religiosity_level',
+          'morality_level',
+          'etiquette_level',
+          'health_status',
+          'smoking',
+          'financial_status',
+          'educational_qualification',
+          'age',
+          'beauty_level',
+          'hijab_type',
+          'province',
+          'accommodation_type',
+          'male_description_extra',
+          'height_weight_details',
+          'male_condition_extra',
+          'male_city',
+          'female_city',
+          'female_description_extra',
+          'female_condition_extra']
+
+    zipped = zip(ar, en) if direction == 'ar_en' else zip(en, ar)
+    return {k: v for (k, v) in zipped}
+
+
 def calculate_age(date_of_birth):
     today = datetime.today()
     age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
@@ -57,40 +130,7 @@ def load_data(file_id: str,
 
     df = pd.DataFrame(sheet[1:], columns=sheet[0])
 
-    df = df.rename(columns={
-        'الاسم الثلاثي': 'full_name',
-        'رقم جوال الوسيط او الوسيطة': 'intermediary_number',
-        'نوع الجنس': 'gender',
-        'نوع القبيلة': 'clan_type',
-        'نوع الزواج': 'marriage_type',
-        'طبيعة العائلة': 'family_nature',
-        'نوع الجنسية': 'nationality_type',
-        'تاريخ الميلاد': 'date_of_birth',
-        'الحالة الاجتماعية': 'marital_status',
-        'الوظيفة': 'job',
-        'الطول': 'height',
-        'الوزن': 'weight',
-        'لون البشرة': 'skin_color',
-        'درجة الوسامة': 'attractiveness_level',
-        'درجة التدين': 'religiosity_level',
-        'درجة الخلق': 'morality_level',
-        'درجة الذرابة': 'etiquette_level',
-        'الحالة الصحية': 'health_status',
-        'التدخين': 'smoking',
-        'الحالة المادية': 'financial_status',
-        'المؤهل الدراسي': 'educational_qualification',
-        'العمر': 'age',
-        'درجة الجمال': 'beauty_level',
-        'نوع الحجاب': 'hijab_type',
-        'المنطقة': 'province',
-        'نوع السكن': 'accommodation_type',
-        'اذا كان هناك أشياء تريد ذكرها عن نفسك': 'male_description_extra',
-        'تفاصيل الطول والوزن': 'height_weight_details',
-        'أذكر الأشياء التي تود أن تكون موجودة في زوجتك غير ما سبق ذكره، إذا كان هناك شيء أو يكتفى بكلمة (لايوجد)': 'male_condition_extra',
-        'اسم المدينة التي تسكن فيها': 'male_city',
-        'اسم المدينة التي تسكنين فيها': 'female_city',
-        'اذا كان هناك أشياء تريدين ذكرها عن نفسك': 'female_description_extra',
-        'أذكري الأشياء التي تودين أن تكون موجودة في زوجتك غير ما سبق ذكره ، إذا كان هناك شيء او يكتفى بكلمة (لا يوجد)': 'female_condition_extra'})
+    df = df.rename(columns=ar_en_column_name_dict('ar_en'))
 
     df = df.map(lambda x: x.replace('غير مهم', 'not_important') if isinstance(x, str) else x)
 
@@ -140,7 +180,7 @@ def compute_match(
         fd_df: pd.DataFrame,
         fc_df: pd.DataFrame,
         m_id: int,
-        f_id: int):
+        f_id: int) -> (float, dict, dict):
     # These standards are compared by taking the
     # standard's value from a description dataframe
     # and checking its match in the conditions dataframe
@@ -172,6 +212,11 @@ def compute_match(
     condition_only_standards = [
         'accommodation_type'
     ]
+
+    all_standards = comparison_standards + condition_only_standards + ['age']
+
+    result_m = dict([(x, -1) for x in all_standards])
+    result_f = result_m.copy()
 
     md = md_df.loc[m_id]
     mc = mc_df.loc[m_id]
@@ -228,10 +273,12 @@ def compute_match(
     total_score = 0
 
     # Get the date of birth/age score:
-    score += compute_age_score(mc, fd)
+    result_m['age'] = compute_age_score(mc, fd)
+    score += result_m['age']
     total_score += 1
 
-    score += compute_age_score(fc, md)
+    result_f['age'] = compute_age_score(fc, md)
+    score += result_f['age']
     total_score += 1
 
     for standard in comparison_standards:
@@ -239,22 +286,29 @@ def compute_match(
         # compute the m->f
         r = compute_standard_score(standard, mc, fd)
         if r > -1:
+            result_m[standard] = r
             score += r
             total_score += 1
 
         # compute the f->m
         r = compute_standard_score(standard, fc, md)
         if r > -1:
+            result_f[standard] = r
             score += r
             total_score += 1
 
     for standard in condition_only_standards:
         r = compute_standard_score(standard, mc, fc)
         if r > -1:
+            result_m[standard] = r
+            result_f[standard] = r
             score += r
             total_score += 1
 
-    return score / total_score
+    result_m = {k: v for k, v in result_m.items() if v != -1}
+    result_f = {k: v for k, v in result_f.items() if v != -1}
+
+    return score / total_score, result_m, result_f
 
 
 def compute_results(
@@ -268,15 +322,17 @@ def compute_results(
 
     for m_id in md_df.index:
         for f_id in fd_df.index:
-            score = compute_match(md_df, mc_df, fd_df, fc_df, m_id, f_id)
+            score, result_m, result_f = compute_match(md_df, mc_df, fd_df, fc_df, m_id, f_id)
             if not (min_threshold <= score <= max_threshold):
                 continue
 
             score_results.append({
                 'male': md_df.loc[m_id],
                 'male_c': mc_df.loc[m_id],
+                'male_r': result_m,
                 'female': fd_df.loc[f_id],
                 'female_c': fc_df.loc[f_id],
+                'female_r': result_f,
                 'score': score
             })
 
@@ -296,7 +352,11 @@ def get_result_df() -> pd.DataFrame:
     females_df, fd_df, fc_df = generate_gender_df(df, 'female')
 
     results = compute_results(md_df, mc_df, fd_df, fc_df, min_score_threshold, max_score_threshold)
+
+    en_ar = ar_en_column_name_dict('en_ar')
+
     results_df = pd.DataFrame(map(lambda x: {
+        'نسبة التوافق': x['score'] * 100,
         'رقم الصف للرجل': x['male']['row_number'],
         'اسم الرجل': x['male']['full_name'],
         'رقم الوسيط للرجل': x['male']['intermediary_number'],
@@ -311,7 +371,9 @@ def get_result_df() -> pd.DataFrame:
         'تفاصيل الطول والوزن للفتاة': x['female']['height_weight_details'],
         'معلومات إضافية للفتاة': x['female']['female_description_extra'],
         'شروط إضافية للفتاة': x['female_c']['female_condition_extra'],
-        'نسبة التوافق': x['score'] * 100}, results))
+        **{en_ar[k] + ' (الرجل)': 'x' if v == 0 else '' for k, v in x['male_r'].items()},
+        **{en_ar[k] + ' (الفتاة)': 'x' if v == 0 else '' for k, v in x['female_r'].items()},
+    }, results))
 
     return results_df
 
